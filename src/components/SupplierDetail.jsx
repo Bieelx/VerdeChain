@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { RISK_COLORS, RISK_BG } from '../data/suppliers'
+import { generateGeoRiskReport } from '../utils/geoRiskReport'
 
 const SEVERITY_LABEL = {
   CRITICAL: 'CRÍTICO',
@@ -23,6 +24,17 @@ const FATOR_CONFIG = [
   { key: 'areaCritica', label: 'Área Crítica', max: 10, icon: '⚠️' },
 ]
 
+// Histórico simulado de evolução do score (últimos 6 meses)
+const HISTORICO_MOCK = {
+  1: [62, 70, 78, 85, 91, 100],
+  2: [55, 58, 63, 67, 72, 78],
+  3: [50, 52, 55, 58, 62, 65],
+  4: [38, 40, 42, 43, 44, 44],
+  5: [15, 14, 13, 13, 12, 12],
+  6: [20, 22, 21, 23, 22, 22],
+}
+const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun']
+
 function MetricCard({ label, value, unit, color, icon, alert }) {
   return (
     <div
@@ -40,9 +52,7 @@ function MetricCard({ label, value, unit, color, icon, alert }) {
         <span className="text-lg font-bold leading-none" style={{ color: color || '#fff' }}>{value}</span>
         {unit && <span className="text-[10px] text-gray-500 mb-0.5">{unit}</span>}
       </div>
-      {alert && (
-        <div className="text-[9px] text-red-400 font-medium">⚠ Alerta ativo</div>
-      )}
+      {alert && <div className="text-[9px] text-red-400 font-medium">⚠ Alerta ativo</div>}
     </div>
   )
 }
@@ -99,7 +109,7 @@ function FatorBar({ label, icon, value, max }) {
   )
 }
 
-function ScoreRing({ score, level, color }) {
+function ScoreRing({ score, color }) {
   const circumference = 138.2
   const dash = (score / 100) * circumference
   return (
@@ -123,9 +133,93 @@ function ScoreRing({ score, level, color }) {
   )
 }
 
+// Gráfico de evolução sparkline SVG
+function EvolucaoChart({ supplierId, color }) {
+  const data = HISTORICO_MOCK[supplierId] || [50, 50, 50, 50, 50, 50]
+  const min = 0
+  const max = 100
+  const W = 260
+  const H = 52
+  const padX = 28
+  const padY = 6
+
+  const points = data.map((v, i) => {
+    const x = padX + (i / (data.length - 1)) * (W - padX - 8)
+    const y = padY + ((max - v) / (max - min)) * (H - padY * 2)
+    return [x, y]
+  })
+
+  const polyline = points.map(([x, y]) => `${x},${y}`).join(' ')
+
+  // Área preenchida
+  const areaPoints = [
+    `${points[0][0]},${H - padY}`,
+    ...points.map(([x, y]) => `${x},${y}`),
+    `${points[points.length - 1][0]},${H - padY}`,
+  ].join(' ')
+
+  const last = data[data.length - 1]
+  const prev = data[data.length - 2]
+  const delta = last - prev
+  const deltaColor = delta > 0 ? '#ff0040' : delta < 0 ? '#00ff88' : '#888'
+  const deltaSign = delta > 0 ? '▲' : delta < 0 ? '▼' : '—'
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[9px] text-gray-500 uppercase tracking-wider">Evolução do Score (6 meses)</span>
+        <span className="text-[9px] font-bold font-mono" style={{ color: deltaColor }}>
+          {deltaSign} {Math.abs(delta)} pts esta semana
+        </span>
+      </div>
+      <div
+        className="rounded-lg overflow-hidden"
+        style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1a1a2e' }}
+      >
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+          {/* Grid lines */}
+          {[25, 50, 75].map(v => {
+            const gy = padY + ((max - v) / max) * (H - padY * 2)
+            return (
+              <line key={v} x1={padX} y1={gy} x2={W - 4} y2={gy}
+                stroke="#1a1a2e" strokeWidth="0.5" strokeDasharray="3,3" />
+            )
+          })}
+          {/* Area fill */}
+          <polygon points={areaPoints} fill={`${color}12`} />
+          {/* Line */}
+          <polyline points={polyline} fill="none" stroke={color} strokeWidth="1.5"
+            strokeLinecap="round" strokeLinejoin="round"
+            style={{ filter: `drop-shadow(0 0 3px ${color}88)` }} />
+          {/* Dots */}
+          {points.map(([x, y], i) => (
+            <circle key={i} cx={x} cy={y} r={i === points.length - 1 ? 3 : 1.5}
+              fill={color} style={{ filter: `drop-shadow(0 0 2px ${color})` }} />
+          ))}
+          {/* Labels eixo X */}
+          {MESES.map((m, i) => {
+            const x = padX + (i / (data.length - 1)) * (W - padX - 8)
+            return (
+              <text key={m} x={x} y={H - 1} textAnchor="middle"
+                fontSize="7" fill="#444455">{m}</text>
+            )
+          })}
+          {/* Labels eixo Y */}
+          {[0, 50, 100].map(v => {
+            const gy = padY + ((max - v) / max) * (H - padY * 2)
+            return (
+              <text key={v} x={padX - 3} y={gy + 2.5} textAnchor="end"
+                fontSize="7" fill="#333344">{v}</text>
+            )
+          })}
+        </svg>
+      </div>
+    </div>
+  )
+}
+
 // ─── Aba ESG ───────────────────────────────────────────────────────────────
 function TabESG({ supplier }) {
-  const riskColor = RISK_COLORS[supplier.risk]
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
       <div className="grid grid-cols-2 gap-2">
@@ -196,9 +290,7 @@ function TabESG({ supplier }) {
                 key={cert}
                 className="text-[9px] px-2 py-0.5 rounded-full"
                 style={{
-                  background: cert.includes('exp') || cert.includes('pendente')
-                    ? 'rgba(255,107,53,0.12)'
-                    : 'rgba(0,255,136,0.1)',
+                  background: cert.includes('exp') || cert.includes('pendente') ? 'rgba(255,107,53,0.12)' : 'rgba(0,255,136,0.1)',
                   color: cert.includes('exp') || cert.includes('pendente') ? '#ff6b35' : '#00ff88',
                   border: `1px solid ${cert.includes('exp') || cert.includes('pendente') ? '#ff6b3533' : '#00ff8833'}`,
                 }}
@@ -217,14 +309,8 @@ function TabESG({ supplier }) {
           <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">Alertas Ativos</div>
           <div className="space-y-1.5">
             {supplier.alerts.map((alert, i) => (
-              <div
-                key={i}
-                className="rounded-lg px-3 py-2"
-                style={{
-                  background: 'rgba(255,0,64,0.06)',
-                  border: '1px solid rgba(255,0,64,0.2)',
-                }}
-              >
+              <div key={i} className="rounded-lg px-3 py-2"
+                style={{ background: 'rgba(255,0,64,0.06)', border: '1px solid rgba(255,0,64,0.2)' }}>
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="text-[8px] font-bold text-red-400 tracking-wider">{alert.type}</span>
                   <span className="text-[8px] text-gray-600">{alert.date}</span>
@@ -238,22 +324,17 @@ function TabESG({ supplier }) {
 
       <div
         className="rounded-lg p-3"
-        style={{
-          background: 'rgba(0,212,255,0.05)',
-          border: '1px solid rgba(0,212,255,0.2)',
-        }}
+        style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.2)' }}
       >
         <div className="flex items-center gap-1.5 mb-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
           <span className="text-[9px] text-cyan-400 font-semibold uppercase tracking-wider">Recomendação IA</span>
-          <span
-            className="ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded"
+          <span className="ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded"
             style={{
               background: RISK_BG[supplier.aiSeverity],
               color: RISK_COLORS[supplier.aiSeverity],
               border: `1px solid ${RISK_COLORS[supplier.aiSeverity]}44`,
-            }}
-          >
+            }}>
             {SEVERITY_LABEL[supplier.aiSeverity]}
           </span>
         </div>
@@ -270,7 +351,7 @@ function TabESG({ supplier }) {
 }
 
 // ─── Aba GeoRisk ───────────────────────────────────────────────────────────
-function TabGeoRisk({ supplier }) {
+function TabGeoRisk({ supplier, onGerarLaudo }) {
   const gr = supplier.geoRisk
   if (!gr) return (
     <div className="flex-1 flex items-center justify-center text-[11px] text-gray-600">
@@ -281,30 +362,27 @@ function TabGeoRisk({ supplier }) {
   const levelColor = RISK_COLORS[gr.level]
   const decisao = DECISAO_CONFIG[gr.decisaoSugerida]
 
+  // Tendência da semana
+  const hist = HISTORICO_MOCK[supplier.id] || []
+  const delta = hist.length >= 2 ? hist[hist.length - 1] - hist[hist.length - 2] : 0
+  const deltaColor = delta > 0 ? '#ff0040' : delta < 0 ? '#00ff88' : '#888'
+  const deltaSign = delta > 0 ? '▲' : delta < 0 ? '▼' : '—'
+
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
 
       {/* Score header */}
-      <div
-        className="rounded-lg p-3"
-        style={{
-          background: `${levelColor}08`,
-          border: `1px solid ${levelColor}25`,
-        }}
-      >
+      <div className="rounded-lg p-3" style={{ background: `${levelColor}08`, border: `1px solid ${levelColor}25` }}>
         <div className="flex items-center gap-3">
-          <ScoreRing score={gr.score} level={gr.level} color={levelColor} />
+          <ScoreRing score={gr.score} color={levelColor} />
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-2">
-              <span
-                className="text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider"
-                style={{
-                  background: RISK_BG[gr.level],
-                  color: levelColor,
-                  border: `1px solid ${levelColor}44`,
-                }}
-              >
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider"
+                style={{ background: RISK_BG[gr.level], color: levelColor, border: `1px solid ${levelColor}44` }}>
                 {SEVERITY_LABEL[gr.level]}
+              </span>
+              <span className="text-[9px] font-bold font-mono" style={{ color: deltaColor }}>
+                {deltaSign} {Math.abs(delta)} pts
               </span>
             </div>
             <div className="text-[9px] text-gray-500">
@@ -320,39 +398,28 @@ function TabGeoRisk({ supplier }) {
         </div>
       </div>
 
+      {/* Evolução do score */}
+      <EvolucaoChart supplierId={supplier.id} color={levelColor} />
+
       {/* Breakdown dos fatores */}
-      <div
-        className="rounded-lg p-3 space-y-2.5"
-        style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1a1a2e' }}
-      >
+      <div className="rounded-lg p-3 space-y-2.5"
+        style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1a1a2e' }}>
         <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1">Breakdown dos Fatores</div>
         {FATOR_CONFIG.map((f) => (
-          <FatorBar
-            key={f.key}
-            label={f.label}
-            icon={f.icon}
-            value={gr.fatores[f.key]}
-            max={f.max}
-          />
+          <FatorBar key={f.key} label={f.label} icon={f.icon} value={gr.fatores[f.key]} max={f.max} />
         ))}
       </div>
 
       {/* Alertas GeoRisk */}
-      {gr.alertasGeoRisk.length > 0 && (
+      {gr.alertasGeoRisk.length > 0 ? (
         <div>
           <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">Alertas GeoRisk</div>
           <div className="space-y-1.5">
             {gr.alertasGeoRisk.map((alert, i) => {
               const ac = RISK_COLORS[alert.severidade] || '#ff6b35'
               return (
-                <div
-                  key={i}
-                  className="rounded-lg px-3 py-2"
-                  style={{
-                    background: `${ac}08`,
-                    border: `1px solid ${ac}28`,
-                  }}
-                >
+                <div key={i} className="rounded-lg px-3 py-2"
+                  style={{ background: `${ac}08`, border: `1px solid ${ac}28` }}>
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="text-[8px] font-bold tracking-wider" style={{ color: ac }}>{alert.tipo}</span>
                     <span className="text-[8px] text-gray-600">{alert.data}</span>
@@ -363,48 +430,53 @@ function TabGeoRisk({ supplier }) {
             })}
           </div>
         </div>
-      )}
-
-      {gr.alertasGeoRisk.length === 0 && (
-        <div
-          className="rounded-lg px-3 py-2.5 flex items-center gap-2"
-          style={{ background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.15)' }}
-        >
+      ) : (
+        <div className="rounded-lg px-3 py-2.5 flex items-center gap-2"
+          style={{ background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.15)' }}>
           <span className="text-sm">✅</span>
           <span className="text-[10px] text-green-400">Nenhum alerta geoespacial ativo</span>
         </div>
       )}
 
       {/* Decisão sugerida */}
-      <div
-        className="rounded-lg p-3"
-        style={{ background: `${decisao.color}08`, border: `1px solid ${decisao.color}28` }}
-      >
+      <div className="rounded-lg p-3"
+        style={{ background: `${decisao.color}08`, border: `1px solid ${decisao.color}28` }}>
         <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-2">Decisão Sugerida</div>
         <div className="flex items-center gap-2 mb-2">
-          <span
-            className="text-[10px] font-bold px-2.5 py-1 rounded uppercase tracking-wider"
-            style={{
-              background: `${decisao.color}18`,
-              color: decisao.color,
-              border: `1px solid ${decisao.color}44`,
-              boxShadow: `0 0 8px ${decisao.color}22`,
-            }}
-          >
+          <span className="text-[10px] font-bold px-2.5 py-1 rounded uppercase tracking-wider"
+            style={{ background: `${decisao.color}18`, color: decisao.color, border: `1px solid ${decisao.color}44`, boxShadow: `0 0 8px ${decisao.color}22` }}>
             {decisao.label}
           </span>
         </div>
         <p className="text-[10px] text-gray-300 leading-relaxed mb-2">{decisao.msg}</p>
-        <div
-          className="rounded px-2 py-1.5 flex items-start gap-1.5"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-        >
+        <div className="rounded px-2 py-1.5 flex items-start gap-1.5"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <span className="text-[9px] text-gray-600 mt-0.5">⚠</span>
           <p className="text-[9px] text-gray-600 leading-relaxed">
             Esta decisão é baseada em dados geoespaciais de satélite. A seguradora aplica suas próprias regras atuariais e tem autonomia total sobre a aceitação do risco.
           </p>
         </div>
       </div>
+
+      {/* Botão gerar laudo */}
+      <button
+        onClick={onGerarLaudo}
+        className="w-full py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+        style={{
+          background: 'rgba(255,107,53,0.12)',
+          border: '1px solid rgba(255,107,53,0.35)',
+          color: '#ff6b35',
+          boxShadow: '0 0 12px rgba(255,107,53,0.1)',
+        }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        Gerar Laudo GeoRisk (PDF)
+      </button>
 
     </div>
   )
@@ -413,6 +485,8 @@ function TabGeoRisk({ supplier }) {
 // ─── Componente principal ─────────────────────────────────────────────────
 export default function SupplierDetail({ supplier, onClose }) {
   const [activeTab, setActiveTab] = useState('esg')
+  const [laudoGerado, setLaudoGerado] = useState(false)
+
   if (!supplier) return null
   const riskColor = RISK_COLORS[supplier.risk]
 
@@ -420,6 +494,12 @@ export default function SupplierDetail({ supplier, onClose }) {
     { id: 'esg', label: 'ESG' },
     { id: 'georisk', label: 'GeoRisk' },
   ]
+
+  const handleGerarLaudo = () => {
+    generateGeoRiskReport(supplier)
+    setLaudoGerado(true)
+    setTimeout(() => setLaudoGerado(false), 3000)
+  }
 
   return (
     <div className="panel-enter flex flex-col h-full">
@@ -455,12 +535,7 @@ export default function SupplierDetail({ supplier, onClose }) {
             >
               {SEVERITY_LABEL[supplier.risk]}
             </span>
-            <button
-              onClick={onClose}
-              className="text-gray-600 hover:text-gray-300 transition-colors text-xs p-0.5"
-            >
-              ✕
-            </button>
+            <button onClick={onClose} className="text-gray-600 hover:text-gray-300 transition-colors text-xs p-0.5">✕</button>
           </div>
         </div>
 
@@ -490,10 +565,7 @@ export default function SupplierDetail({ supplier, onClose }) {
         </div>
 
         {/* Tabs */}
-        <div
-          className="mt-3 flex rounded-md overflow-hidden"
-          style={{ border: '1px solid rgba(255,255,255,0.08)' }}
-        >
+        <div className="mt-3 flex rounded-md overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
           {tabs.map((tab, idx) => (
             <button
               key={tab.id}
@@ -509,20 +581,29 @@ export default function SupplierDetail({ supplier, onClose }) {
                 borderRight: idx < tabs.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none',
               }}
             >
-              {tab.id === 'georisk' && (
-                <span className="mr-1">🛰</span>
-              )}
+              {tab.id === 'georisk' && <span className="mr-1">🛰</span>}
               {tab.label}
             </button>
           ))}
         </div>
+
+        {/* Toast laudo gerado */}
+        {laudoGerado && (
+          <div className="mt-2 rounded-lg px-3 py-1.5 flex items-center gap-2 panel-enter"
+            style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.3)' }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ff6b35" strokeWidth="2.5">
+              <polyline points="20,6 9,17 4,12"/>
+            </svg>
+            <span className="text-[9px] text-orange-400 font-medium">Laudo GeoRisk gerado com sucesso!</span>
+          </div>
+        )}
       </div>
 
       {/* Tab content */}
       {activeTab === 'esg' ? (
         <TabESG supplier={supplier} />
       ) : (
-        <TabGeoRisk supplier={supplier} />
+        <TabGeoRisk supplier={supplier} onGerarLaudo={handleGerarLaudo} />
       )}
     </div>
   )
