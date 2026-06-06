@@ -1,5 +1,12 @@
 import { useState } from 'react'
 import { suppliers, RISK_COLORS, RISK_BG } from '../data/suppliers'
+import {
+  AlertCenter,
+  ClaimsValidation,
+  FinancialExposure,
+  QuotationSimulator,
+  RiskForecast,
+} from './GeoRiskAdvancedSections'
 
 const SEVERITY_LABEL = {
   CRITICAL: 'CRÍTICO',
@@ -484,6 +491,11 @@ export default function GeoRiskPortfolio() {
     { id: 'carteira', label: 'Carteira & Alertas' },
     { id: 'mapa',     label: 'Mapa de Calor' },
     { id: 'api',      label: 'Simulador API' },
+    { id: 'cotacao',  label: 'Simulador de Cotacao' },
+    { id: 'sinistro', label: 'Validacao de Sinistro' },
+    { id: 'alertas',  label: 'Alert Center' },
+    { id: 'exposicao', label: 'Exposicao Financeira' },
+    { id: 'forecast', label: 'Risk Forecast' },
   ]
 
   return (
@@ -725,6 +737,13 @@ export default function GeoRiskPortfolio() {
             </div>
           </div>
         )}
+
+        {/* NOVAS AREAS MVP GEORISK */}
+        {secao === 'cotacao' && <QuotationSimulator />}
+        {secao === 'sinistro' && <ClaimsValidation />}
+        {secao === 'alertas' && <AlertCenter />}
+        {secao === 'exposicao' && <FinancialExposure />}
+        {secao === 'forecast' && <RiskForecast />}
 
       </div>
     </div>
