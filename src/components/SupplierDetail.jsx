@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { RISK_COLORS, RISK_BG } from '../data/suppliers'
 
 const SEVERITY_LABEL = {
@@ -6,6 +7,21 @@ const SEVERITY_LABEL = {
   MEDIUM: 'MÉDIO',
   LOW: 'BAIXO',
 }
+
+const DECISAO_CONFIG = {
+  APROVAR: { label: 'APROVAR', color: '#00ff88', bg: 'rgba(0,255,136,0.1)', msg: 'Risco aceitável. Apólice pode ser emitida normalmente.' },
+  MONITORAR: { label: 'MONITORAR', color: '#00d4ff', bg: 'rgba(0,212,255,0.1)', msg: 'Risco moderado. Recomenda-se acompanhamento trimestral.' },
+  ANALISE_COMPLEMENTAR: { label: 'ANÁLISE COMPLEMENTAR', color: '#ffd700', bg: 'rgba(255,215,0,0.1)', msg: 'Solicitar vistoria de campo antes de emitir apólice.' },
+  REJEITAR: { label: 'REJEITAR', color: '#ff0040', bg: 'rgba(255,0,64,0.1)', msg: 'Encaminhar para análise manual. Risco geoespacial crítico identificado.' },
+}
+
+const FATOR_CONFIG = [
+  { key: 'queimadas', label: 'Queimadas', max: 30, icon: '🔥' },
+  { key: 'seca', label: 'Seca', max: 25, icon: '☀️' },
+  { key: 'vegetacao', label: 'Saúde Vegetação', max: 20, icon: '🌿' },
+  { key: 'historicoSinistros', label: 'Hist. Sinistros', max: 15, icon: '📋' },
+  { key: 'areaCritica', label: 'Área Crítica', max: 10, icon: '⚠️' },
+]
 
 function MetricCard({ label, value, unit, color, icon, alert }) {
   return (
@@ -54,9 +70,356 @@ function GaugeBar({ value, max = 100, color, label }) {
   )
 }
 
+function FatorBar({ label, icon, value, max }) {
+  const pct = Math.min(100, (value / max) * 100)
+  const color = pct >= 80 ? '#ff0040' : pct >= 60 ? '#ff6b35' : pct >= 40 ? '#ffd700' : '#00ff88'
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs">{icon}</span>
+          <span className="text-[9px] text-gray-400">{label}</span>
+        </div>
+        <span className="text-[9px] font-bold font-mono" style={{ color }}>
+          {value}<span className="text-gray-600">/{max}</span>
+        </span>
+      </div>
+      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${pct}%`,
+            background: `linear-gradient(90deg, ${color}66, ${color})`,
+            boxShadow: `0 0 4px ${color}55`,
+            transition: 'width 0.7s ease',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function ScoreRing({ score, level, color }) {
+  const circumference = 138.2
+  const dash = (score / 100) * circumference
+  return (
+    <div className="relative w-14 h-14 flex-shrink-0">
+      <svg viewBox="0 0 56 56" className="w-full h-full -rotate-90">
+        <circle cx="28" cy="28" r="22" fill="none" stroke="#1a1a2e" strokeWidth="5" />
+        <circle
+          cx="28" cy="28" r="22" fill="none"
+          stroke={color}
+          strokeWidth="5"
+          strokeDasharray={`${dash} ${circumference}`}
+          strokeLinecap="round"
+          style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-xs font-bold leading-none" style={{ color }}>{score}</span>
+        <span className="text-[7px] text-gray-600">RISCO</span>
+      </div>
+    </div>
+  )
+}
+
+// ─── Aba ESG ───────────────────────────────────────────────────────────────
+function TabESG({ supplier }) {
+  const riskColor = RISK_COLORS[supplier.risk]
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <MetricCard
+          label="Desmatamento"
+          value={supplier.deforestationAlert}
+          unit="%"
+          color={supplier.deforestationAlert > 30 ? RISK_COLORS.CRITICAL : supplier.deforestationAlert > 10 ? RISK_COLORS.HIGH : '#00ff88'}
+          icon="🌳"
+          alert={supplier.deforestationAlert > 30}
+        />
+        <MetricCard
+          label="Focos de Calor"
+          value={supplier.fireHotspots}
+          unit="focos"
+          color={supplier.fireHotspots > 50 ? RISK_COLORS.CRITICAL : supplier.fireHotspots > 10 ? RISK_COLORS.HIGH : '#00ff88'}
+          icon="🔥"
+          alert={supplier.fireHotspots > 50}
+        />
+        <MetricCard
+          label="Carbono Est."
+          value={(supplier.carbonEstimate / 1000).toFixed(1)}
+          unit="ktCO₂"
+          color="#00d4ff"
+          icon="♻"
+        />
+        <MetricCard
+          label="Mud. Uso Terra"
+          value={supplier.landUseChange}
+          unit="%"
+          color={supplier.landUseChange > 15 ? RISK_COLORS.HIGH : supplier.landUseChange > 5 ? RISK_COLORS.MEDIUM : '#00ff88'}
+          icon="🗺"
+        />
+      </div>
+
+      <div
+        className="rounded-lg p-3"
+        style={{
+          background: supplier.protectedAreaProximity < 5 ? `${RISK_COLORS.CRITICAL}08` : 'rgba(255,255,255,0.03)',
+          border: `1px solid ${supplier.protectedAreaProximity < 5 ? RISK_COLORS.CRITICAL + '33' : '#1a1a2e'}`,
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[9px] text-gray-500 uppercase tracking-wider">Área Protegida Próxima</span>
+          <span className="text-[9px]">🛡</span>
+        </div>
+        <div className="mt-1 flex items-end gap-1">
+          <span className="text-lg font-bold" style={{
+            color: supplier.protectedAreaProximity < 5 ? RISK_COLORS.CRITICAL
+              : supplier.protectedAreaProximity < 15 ? RISK_COLORS.HIGH
+              : '#00ff88'
+          }}>
+            {supplier.protectedAreaProximity}
+          </span>
+          <span className="text-[10px] text-gray-500 mb-0.5">km</span>
+        </div>
+        {supplier.protectedAreaProximity < 10 && (
+          <div className="text-[9px] text-orange-400 mt-0.5">⚠ Proximidade crítica</div>
+        )}
+      </div>
+
+      <div>
+        <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">Certificações</div>
+        {supplier.certifications.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {supplier.certifications.map((cert) => (
+              <span
+                key={cert}
+                className="text-[9px] px-2 py-0.5 rounded-full"
+                style={{
+                  background: cert.includes('exp') || cert.includes('pendente')
+                    ? 'rgba(255,107,53,0.12)'
+                    : 'rgba(0,255,136,0.1)',
+                  color: cert.includes('exp') || cert.includes('pendente') ? '#ff6b35' : '#00ff88',
+                  border: `1px solid ${cert.includes('exp') || cert.includes('pendente') ? '#ff6b3533' : '#00ff8833'}`,
+                }}
+              >
+                {cert}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="text-[10px] text-red-400">Nenhuma certificação ativa</span>
+        )}
+      </div>
+
+      {supplier.alerts.length > 0 && (
+        <div>
+          <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">Alertas Ativos</div>
+          <div className="space-y-1.5">
+            {supplier.alerts.map((alert, i) => (
+              <div
+                key={i}
+                className="rounded-lg px-3 py-2"
+                style={{
+                  background: 'rgba(255,0,64,0.06)',
+                  border: '1px solid rgba(255,0,64,0.2)',
+                }}
+              >
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[8px] font-bold text-red-400 tracking-wider">{alert.type}</span>
+                  <span className="text-[8px] text-gray-600">{alert.date}</span>
+                </div>
+                <div className="text-[10px] text-gray-300">{alert.msg}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div
+        className="rounded-lg p-3"
+        style={{
+          background: 'rgba(0,212,255,0.05)',
+          border: '1px solid rgba(0,212,255,0.2)',
+        }}
+      >
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          <span className="text-[9px] text-cyan-400 font-semibold uppercase tracking-wider">Recomendação IA</span>
+          <span
+            className="ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded"
+            style={{
+              background: RISK_BG[supplier.aiSeverity],
+              color: RISK_COLORS[supplier.aiSeverity],
+              border: `1px solid ${RISK_COLORS[supplier.aiSeverity]}44`,
+            }}
+          >
+            {SEVERITY_LABEL[supplier.aiSeverity]}
+          </span>
+        </div>
+        <p className="text-[10px] text-gray-300 leading-relaxed">{supplier.aiRecommendation}</p>
+      </div>
+
+      <div className="flex justify-between text-[9px] text-gray-600 pb-2">
+        <span>{supplier.hectares.toLocaleString('pt-BR')} ha</span>
+        <span>Última auditoria: {supplier.lastAudit}</span>
+        <span>{supplier.state}</span>
+      </div>
+    </div>
+  )
+}
+
+// ─── Aba GeoRisk ───────────────────────────────────────────────────────────
+function TabGeoRisk({ supplier }) {
+  const gr = supplier.geoRisk
+  if (!gr) return (
+    <div className="flex-1 flex items-center justify-center text-[11px] text-gray-600">
+      Dados GeoRisk não disponíveis
+    </div>
+  )
+
+  const levelColor = RISK_COLORS[gr.level]
+  const decisao = DECISAO_CONFIG[gr.decisaoSugerida]
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+
+      {/* Score header */}
+      <div
+        className="rounded-lg p-3"
+        style={{
+          background: `${levelColor}08`,
+          border: `1px solid ${levelColor}25`,
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <ScoreRing score={gr.score} level={gr.level} color={levelColor} />
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <span
+                className="text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider"
+                style={{
+                  background: RISK_BG[gr.level],
+                  color: levelColor,
+                  border: `1px solid ${levelColor}44`,
+                }}
+              >
+                {SEVERITY_LABEL[gr.level]}
+              </span>
+            </div>
+            <div className="text-[9px] text-gray-500">
+              Cultura: <span className="text-gray-300">{supplier.cultura}</span>
+            </div>
+            <div className="text-[9px] text-gray-500">
+              Área segurada: <span className="text-gray-300">{supplier.areaSegura?.toLocaleString('pt-BR')} ha</span>
+            </div>
+            <div className="text-[9px] text-gray-600">
+              Varredura: <span className="text-gray-500">{gr.ultimaVarredura}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Breakdown dos fatores */}
+      <div
+        className="rounded-lg p-3 space-y-2.5"
+        style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1a1a2e' }}
+      >
+        <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1">Breakdown dos Fatores</div>
+        {FATOR_CONFIG.map((f) => (
+          <FatorBar
+            key={f.key}
+            label={f.label}
+            icon={f.icon}
+            value={gr.fatores[f.key]}
+            max={f.max}
+          />
+        ))}
+      </div>
+
+      {/* Alertas GeoRisk */}
+      {gr.alertasGeoRisk.length > 0 && (
+        <div>
+          <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">Alertas GeoRisk</div>
+          <div className="space-y-1.5">
+            {gr.alertasGeoRisk.map((alert, i) => {
+              const ac = RISK_COLORS[alert.severidade] || '#ff6b35'
+              return (
+                <div
+                  key={i}
+                  className="rounded-lg px-3 py-2"
+                  style={{
+                    background: `${ac}08`,
+                    border: `1px solid ${ac}28`,
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[8px] font-bold tracking-wider" style={{ color: ac }}>{alert.tipo}</span>
+                    <span className="text-[8px] text-gray-600">{alert.data}</span>
+                  </div>
+                  <div className="text-[10px] text-gray-300">{alert.msg}</div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {gr.alertasGeoRisk.length === 0 && (
+        <div
+          className="rounded-lg px-3 py-2.5 flex items-center gap-2"
+          style={{ background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.15)' }}
+        >
+          <span className="text-sm">✅</span>
+          <span className="text-[10px] text-green-400">Nenhum alerta geoespacial ativo</span>
+        </div>
+      )}
+
+      {/* Decisão sugerida */}
+      <div
+        className="rounded-lg p-3"
+        style={{ background: `${decisao.color}08`, border: `1px solid ${decisao.color}28` }}
+      >
+        <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-2">Decisão Sugerida</div>
+        <div className="flex items-center gap-2 mb-2">
+          <span
+            className="text-[10px] font-bold px-2.5 py-1 rounded uppercase tracking-wider"
+            style={{
+              background: `${decisao.color}18`,
+              color: decisao.color,
+              border: `1px solid ${decisao.color}44`,
+              boxShadow: `0 0 8px ${decisao.color}22`,
+            }}
+          >
+            {decisao.label}
+          </span>
+        </div>
+        <p className="text-[10px] text-gray-300 leading-relaxed mb-2">{decisao.msg}</p>
+        <div
+          className="rounded px-2 py-1.5 flex items-start gap-1.5"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <span className="text-[9px] text-gray-600 mt-0.5">⚠</span>
+          <p className="text-[9px] text-gray-600 leading-relaxed">
+            Esta decisão é baseada em dados geoespaciais de satélite. A seguradora aplica suas próprias regras atuariais e tem autonomia total sobre a aceitação do risco.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  )
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────
 export default function SupplierDetail({ supplier, onClose }) {
+  const [activeTab, setActiveTab] = useState('esg')
   if (!supplier) return null
   const riskColor = RISK_COLORS[supplier.risk]
+
+  const tabs = [
+    { id: 'esg', label: 'ESG' },
+    { id: 'georisk', label: 'GeoRisk' },
+  ]
 
   return (
     <div className="panel-enter flex flex-col h-full">
@@ -101,7 +464,7 @@ export default function SupplierDetail({ supplier, onClose }) {
           </div>
         </div>
 
-        {/* Risk score ring */}
+        {/* Score ring + gauges */}
         <div className="mt-3 flex items-center gap-3">
           <div className="relative w-14 h-14 flex-shrink-0">
             <svg viewBox="0 0 56 56" className="w-full h-full -rotate-90">
@@ -117,161 +480,50 @@ export default function SupplierDetail({ supplier, onClose }) {
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-xs font-bold leading-none" style={{ color: riskColor }}>{supplier.riskScore}</span>
-              <span className="text-[7px] text-gray-600">RISCO</span>
+              <span className="text-[7px] text-gray-600">ESG</span>
             </div>
           </div>
           <div className="flex-1 space-y-1.5">
             <GaugeBar value={supplier.complianceScore} color="#00ff88" label="Compliance" />
-            <GaugeBar value={supplier.riskScore} color={riskColor} label="Risco" />
+            <GaugeBar value={supplier.riskScore} color={riskColor} label="Risco ESG" />
           </div>
         </div>
-      </div>
 
-      {/* Metrics grid */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <MetricCard
-            label="Desmatamento"
-            value={supplier.deforestationAlert}
-            unit="%"
-            color={supplier.deforestationAlert > 30 ? RISK_COLORS.CRITICAL : supplier.deforestationAlert > 10 ? RISK_COLORS.HIGH : '#00ff88'}
-            icon="🌳"
-            alert={supplier.deforestationAlert > 30}
-          />
-          <MetricCard
-            label="Focos de Calor"
-            value={supplier.fireHotspots}
-            unit="focos"
-            color={supplier.fireHotspots > 50 ? RISK_COLORS.CRITICAL : supplier.fireHotspots > 10 ? RISK_COLORS.HIGH : '#00ff88'}
-            icon="🔥"
-            alert={supplier.fireHotspots > 50}
-          />
-          <MetricCard
-            label="Carbono Est."
-            value={(supplier.carbonEstimate / 1000).toFixed(1)}
-            unit="ktCO₂"
-            color="#00d4ff"
-            icon="♻"
-          />
-          <MetricCard
-            label="Mud. Uso Terra"
-            value={supplier.landUseChange}
-            unit="%"
-            color={supplier.landUseChange > 15 ? RISK_COLORS.HIGH : supplier.landUseChange > 5 ? RISK_COLORS.MEDIUM : '#00ff88'}
-            icon="🗺"
-          />
-        </div>
-
-        {/* Protected area */}
+        {/* Tabs */}
         <div
-          className="rounded-lg p-3"
-          style={{
-            background: supplier.protectedAreaProximity < 5 ? `${RISK_COLORS.CRITICAL}08` : 'rgba(255,255,255,0.03)',
-            border: `1px solid ${supplier.protectedAreaProximity < 5 ? RISK_COLORS.CRITICAL + '33' : '#1a1a2e'}`,
-          }}
+          className="mt-3 flex rounded-md overflow-hidden"
+          style={{ border: '1px solid rgba(255,255,255,0.08)' }}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] text-gray-500 uppercase tracking-wider">Área Protegida Próxima</span>
-            <span className="text-[9px]">🛡</span>
-          </div>
-          <div className="mt-1 flex items-end gap-1">
-            <span className="text-lg font-bold" style={{
-              color: supplier.protectedAreaProximity < 5 ? RISK_COLORS.CRITICAL
-                : supplier.protectedAreaProximity < 15 ? RISK_COLORS.HIGH
-                : '#00ff88'
-            }}>
-              {supplier.protectedAreaProximity}
-            </span>
-            <span className="text-[10px] text-gray-500 mb-0.5">km</span>
-          </div>
-          {supplier.protectedAreaProximity < 10 && (
-            <div className="text-[9px] text-orange-400 mt-0.5">⚠ Proximidade crítica</div>
-          )}
-        </div>
-
-        {/* Certifications */}
-        <div>
-          <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">Certificações</div>
-          {supplier.certifications.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {supplier.certifications.map((cert) => (
-                <span
-                  key={cert}
-                  className="text-[9px] px-2 py-0.5 rounded-full"
-                  style={{
-                    background: cert.includes('exp') || cert.includes('pendente')
-                      ? 'rgba(255,107,53,0.12)'
-                      : 'rgba(0,255,136,0.1)',
-                    color: cert.includes('exp') || cert.includes('pendente') ? '#ff6b35' : '#00ff88',
-                    border: `1px solid ${cert.includes('exp') || cert.includes('pendente') ? '#ff6b3533' : '#00ff8833'}`,
-                  }}
-                >
-                  {cert}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <span className="text-[10px] text-red-400">Nenhuma certificação ativa</span>
-          )}
-        </div>
-
-        {/* Active alerts */}
-        {supplier.alerts.length > 0 && (
-          <div>
-            <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1.5">Alertas Ativos</div>
-            <div className="space-y-1.5">
-              {supplier.alerts.map((alert, i) => (
-                <div
-                  key={i}
-                  className="rounded-lg px-3 py-2"
-                  style={{
-                    background: 'rgba(255,0,64,0.06)',
-                    border: '1px solid rgba(255,0,64,0.2)',
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[8px] font-bold text-red-400 tracking-wider">{alert.type}</span>
-                    <span className="text-[8px] text-gray-600">{alert.date}</span>
-                  </div>
-                  <div className="text-[10px] text-gray-300">{alert.msg}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* AI Recommendation */}
-        <div
-          className="rounded-lg p-3"
-          style={{
-            background: 'rgba(0,212,255,0.05)',
-            border: '1px solid rgba(0,212,255,0.2)',
-          }}
-        >
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="text-[9px] text-cyan-400 font-semibold uppercase tracking-wider">Recomendação IA</span>
-            <span
-              className="ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded"
+          {tabs.map((tab, idx) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all duration-200"
               style={{
-                background: RISK_BG[supplier.aiSeverity],
-                color: RISK_COLORS[supplier.aiSeverity],
-                border: `1px solid ${RISK_COLORS[supplier.aiSeverity]}44`,
+                background: activeTab === tab.id
+                  ? tab.id === 'georisk' ? 'rgba(255,107,53,0.15)' : `${riskColor}15`
+                  : 'transparent',
+                color: activeTab === tab.id
+                  ? tab.id === 'georisk' ? '#ff6b35' : riskColor
+                  : '#444455',
+                borderRight: idx < tabs.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none',
               }}
             >
-              {SEVERITY_LABEL[supplier.aiSeverity]}
-            </span>
-          </div>
-          <p className="text-[10px] text-gray-300 leading-relaxed">{supplier.aiRecommendation}</p>
-        </div>
-
-        {/* Info footer */}
-        <div className="flex justify-between text-[9px] text-gray-600 pb-2">
-          <span>{supplier.hectares.toLocaleString('pt-BR')} ha</span>
-          <span>Última auditoria: {supplier.lastAudit}</span>
-          <span>{supplier.state}</span>
+              {tab.id === 'georisk' && (
+                <span className="mr-1">🛰</span>
+              )}
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
+
+      {/* Tab content */}
+      {activeTab === 'esg' ? (
+        <TabESG supplier={supplier} />
+      ) : (
+        <TabGeoRisk supplier={supplier} />
+      )}
     </div>
   )
 }

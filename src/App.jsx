@@ -13,6 +13,7 @@ import MarsZoneList from './components/MarsZoneList'
 import MarsZoneDetail from './components/MarsZoneDetail'
 import MarsBottomStats from './components/MarsBottomStats'
 import LaunchView from './components/LaunchView'
+import GeoRiskPortfolio from './components/GeoRiskPortfolio'
 import { getSupplierById } from './data/suppliers'
 import { getZoneById } from './data/lunarZones'
 import { getMarsZoneById } from './data/marsZones'
@@ -150,6 +151,7 @@ const BG_COLORS = {
   moon: '#000008',
   mars: '#080200',
   launch: '#000005',
+  georisk: '#0a0a0f',
 }
 
 export default function App() {
@@ -174,6 +176,16 @@ export default function App() {
 
   const handleNavigateTo = useCallback((next) => {
     if (transPhase !== 'idle' || next === view) return
+
+    // GeoRisk não tem transição espacial — troca direta
+    if (next === 'georisk' || view === 'georisk') {
+      setView(next)
+      setSelectedId(null)
+      setSelectedZoneId(null)
+      setSelectedMarsZoneId(null)
+      return
+    }
+
     setTargetView(next)
     setTransPhase('active')
 
@@ -340,6 +352,7 @@ export default function App() {
         )}
 
         {view === 'launch' && <LaunchView />}
+        {view === 'georisk' && <GeoRiskPortfolio />}
       </div>
 
       {view === 'earth' && <BottomStats onExport={handleExport} />}

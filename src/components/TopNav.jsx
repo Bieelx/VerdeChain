@@ -96,6 +96,17 @@ function ViewToggle({ view, onNavigateTo }) {
         </svg>
       ),
     },
+    {
+      id: 'georisk',
+      label: 'GeoRisk',
+      color: '#ff6b35',
+      activeBg: 'rgba(255,107,53,0.18)',
+      icon: (
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+    },
   ]
 
   return (
@@ -141,7 +152,7 @@ export default function TopNav({ view = 'earth', onNavigateTo }) {
   const timeStr = time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   const dateStr = time.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 
-  const borderColor = view === 'moon' ? '#1a1a30' : view === 'mars' ? 'rgba(255,107,53,0.2)' : view === 'launch' ? 'rgba(0,102,255,0.25)' : '#1a1a2e'
+  const borderColor = view === 'moon' ? '#1a1a30' : view === 'mars' ? 'rgba(255,107,53,0.2)' : view === 'launch' ? 'rgba(0,102,255,0.25)' : view === 'georisk' ? 'rgba(255,107,53,0.25)' : '#1a1a2e'
 
   return (
     <header
@@ -161,6 +172,11 @@ export default function TopNav({ view = 'earth', onNavigateTo }) {
           {view === 'moon' && <MoonPhaseIcon />}
           {view === 'earth' && <LeafIcon />}
           {view === 'mars' && <MarsIcon />}
+          {view === 'georisk' && (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#ff6b35" strokeWidth="1.5" fill="rgba(255,107,53,0.15)" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
           {view === 'launch' && (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M12 2C12 2 6.5 7.5 6.5 14a5.5 5.5 0 0 0 11 0C17.5 7.5 12 2 12 2z" stroke="#4488ff" strokeWidth="1.5" fill="rgba(0,102,255,0.15)"/>
@@ -171,7 +187,7 @@ export default function TopNav({ view = 'earth', onNavigateTo }) {
           <div
             className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full animate-pulse"
             style={{
-              background: view === 'moon' ? '#aaaacc' : view === 'mars' ? '#ff8844' : view === 'launch' ? '#4488ff' : '#00ff88',
+              background: view === 'moon' ? '#aaaacc' : view === 'mars' ? '#ff8844' : view === 'launch' ? '#4488ff' : view === 'georisk' ? '#ff6b35' : '#00ff88',
             }}
           />
         </div>
@@ -216,6 +232,16 @@ export default function TopNav({ view = 'earth', onNavigateTo }) {
               </span>
               <span className="text-[9px] text-gray-500 font-medium tracking-widest uppercase">
                 Monitor de Recursos Planetários
+              </span>
+            </>
+          )}
+          {view === 'georisk' && (
+            <>
+              <span className="text-base font-bold tracking-tight" style={{ letterSpacing: '-0.02em', color: '#ff6b35' }}>
+                Geo<span className="text-white">Risk</span>
+              </span>
+              <span className="text-[9px] text-gray-500 font-medium tracking-widest uppercase">
+                Inteligência Geoespacial para Seguros
               </span>
             </>
           )}
@@ -291,6 +317,23 @@ export default function TopNav({ view = 'earth', onNavigateTo }) {
           <div className="w-1.5 h-1.5 rounded-full animate-pulse ml-1" style={{ background: '#0066ff' }} />
         </div>
       )}
+      {view === 'georisk' && (
+        <div
+          className="flex items-center gap-2 px-4 py-1.5 rounded-full"
+          style={{ background: 'rgba(255,107,53,0.06)', border: '1px solid rgba(255,107,53,0.2)' }}
+        >
+          <SatelliteIcon />
+          <div className="text-xs text-gray-300 font-medium">
+            Varredura orbital:{' '}
+            <span className="font-semibold" style={{ color: '#ff6b35' }}>Sentinel-2 · FIRMS NASA</span>
+          </div>
+          <div className="w-px h-3 bg-gray-700 mx-1" />
+          <div className="text-xs text-gray-300 font-medium">
+            <span className="font-semibold" style={{ color: '#ffd700' }}>6</span> propriedades monitoradas
+          </div>
+          <div className="w-1.5 h-1.5 rounded-full animate-pulse ml-1" style={{ background: '#ff6b35' }} />
+        </div>
+      )}
 
       {/* Right */}
       <div className="flex items-center gap-3">
@@ -363,6 +406,22 @@ export default function TopNav({ view = 'earth', onNavigateTo }) {
                 style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.25)' }}
               >
                 Controle ao vivo
+              </span>
+            </>
+          )}
+          {view === 'georisk' && (
+            <>
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                style={{ background: 'rgba(255,0,64,0.15)', color: '#ff0040', border: '1px solid rgba(255,0,64,0.3)' }}
+              >
+                2 Críticos
+              </span>
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                style={{ background: 'rgba(255,107,53,0.12)', color: '#ff6b35', border: '1px solid rgba(255,107,53,0.3)' }}
+              >
+                Carteira ativa
               </span>
             </>
           )}
