@@ -4,6 +4,7 @@ import {
   AlertCenter,
   ClaimsValidation,
   FinancialExposure,
+  PricingIntelligence,
   QuotationSimulator,
   RiskForecast,
 } from './GeoRiskAdvancedSections'
@@ -471,6 +472,7 @@ export default function GeoRiskPortfolio() {
   const [filtro, setFiltro]       = useState('todos')
   const [secao, setSecao]         = useState('carteira') // 'carteira' | 'mapa' | 'api'
   const [mapHover, setMapHover]   = useState(null)
+  const [seguradora, setSeguradora] = useState('@seguradora')
 
   const total     = suppliers.length
   const emAlerta  = suppliers.filter(s => s.geoRisk && ['HIGH','CRITICAL'].includes(s.geoRisk.level)).length
@@ -491,6 +493,7 @@ export default function GeoRiskPortfolio() {
     { id: 'carteira', label: 'Carteira & Alertas' },
     { id: 'mapa',     label: 'Mapa de Calor' },
     { id: 'api',      label: 'Simulador API' },
+    { id: 'pricing',  label: 'Pricing Intelligence' },
     { id: 'cotacao',  label: 'Simulador de Cotacao' },
     { id: 'sinistro', label: 'Validacao de Sinistro' },
     { id: 'alertas',  label: 'Alert Center' },
@@ -518,6 +521,22 @@ export default function GeoRiskPortfolio() {
           <p className="text-[9px] text-gray-600">
             Inteligência geoespacial contínua · Sentinel-2 · FIRMS NASA · Atualizado em {hoje}
           </p>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-[10px] text-gray-400 font-semibold">Boa tarde,</span>
+            <input
+              value={seguradora}
+              onChange={(e) => setSeguradora(e.target.value)}
+              className="px-2 py-1 rounded text-[10px] font-bold outline-none"
+              style={{
+                width: '132px',
+                background: 'rgba(255,107,53,0.08)',
+                border: '1px solid rgba(255,107,53,0.25)',
+                color: '#ff6b35',
+              }}
+              aria-label="Identificador da seguradora"
+            />
+            <span className="text-[9px] text-gray-600">ambiente de subscrição</span>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           {/* Sub-navegação */}
@@ -739,9 +758,10 @@ export default function GeoRiskPortfolio() {
         )}
 
         {/* NOVAS AREAS MVP GEORISK */}
+        {secao === 'pricing' && <PricingIntelligence />}
         {secao === 'cotacao' && <QuotationSimulator />}
         {secao === 'sinistro' && <ClaimsValidation />}
-        {secao === 'alertas' && <AlertCenter />}
+        {secao === 'alertas' && <AlertCenter insurerName={seguradora} />}
         {secao === 'exposicao' && <FinancialExposure />}
         {secao === 'forecast' && <RiskForecast />}
 

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, Suspense } from 'react'
+import { useState, useCallback, useRef, Suspense, lazy } from 'react'
 import TopNav from './components/TopNav'
 import Globe3D from './components/Globe3D'
 import SupplierList from './components/SupplierList'
@@ -13,11 +13,12 @@ import MarsZoneList from './components/MarsZoneList'
 import MarsZoneDetail from './components/MarsZoneDetail'
 import MarsBottomStats from './components/MarsBottomStats'
 import LaunchView from './components/LaunchView'
-import GeoRiskPortfolio from './components/GeoRiskPortfolio'
 import { getSupplierById } from './data/suppliers'
 import { getZoneById } from './data/lunarZones'
 import { getMarsZoneById } from './data/marsZones'
 import { generateESGReport } from './utils/esgReport'
+
+const GeoRiskPortfolio = lazy(() => import('./components/GeoRiskPortfolio'))
 
 function ConstellationBg() {
   const dots = Array.from({ length: 60 }, (_, i) => ({
@@ -352,7 +353,11 @@ export default function App() {
         )}
 
         {view === 'launch' && <LaunchView />}
-        {view === 'georisk' && <GeoRiskPortfolio />}
+        {view === 'georisk' && (
+          <Suspense fallback={<GlobeLoader color="#ff6b35" msg="Carregando GeoRisk..." />}>
+            <GeoRiskPortfolio />
+          </Suspense>
+        )}
       </div>
 
       {view === 'earth' && <BottomStats onExport={handleExport} />}

@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { suppliers, RISK_COLORS, RISK_BG } from '../data/suppliers'
+import { suppliers, RISK_COLORS } from '../data/suppliers'
 
 const LEVEL_LABEL = {
   LOW: 'BAIXO',
@@ -518,14 +518,159 @@ function buildAlerts() {
   })
 }
 
-export function AlertCenter() {
+export function PricingIntelligence() {
+  const [selectedId, setSelectedId] = useState(String(suppliers[1].id))
+  const selected = suppliers.find((s) => s.id === Number(selectedId))
+  const gr = selected.geoRisk
+  const color = RISK_COLORS[gr.level]
+  const agravantes = [
+    gr.fatores.queimadas >= 20 && 'Pressao relevante de focos de calor',
+    gr.fatores.seca >= 18 && 'Deficit hidrico acima do padrao regional',
+    gr.fatores.vegetacao >= 14 && 'Saude da vegetacao abaixo do esperado',
+    gr.fatores.historicoSinistros >= 11 && 'Historico regional de perdas elevado',
+    gr.fatores.areaCritica >= 8 && 'Proximidade com area sensivel ou critica',
+  ].filter(Boolean)
+  const mitigadores = [
+    selected.certifications?.length > 0 && `${selected.certifications.length} certificacao(oes) ativa(s)`,
+    gr.score < 61 && 'Score abaixo da faixa de alto risco',
+    selected.protectedAreaProximity > 15 && 'Baixa proximidade com area protegida',
+    selected.fireHotspots < 10 && 'Baixa recorrencia recente de focos de calor',
+  ].filter(Boolean)
+  const classeTecnica = gr.score >= 81 ? 'Restritiva' : gr.score >= 61 ? 'Agravada' : gr.score >= 31 ? 'Monitorada' : 'Preferencial'
+  const cadence = gr.score >= 81 ? 'Semanal' : gr.score >= 61 ? 'Quinzenal' : gr.score >= 31 ? 'Mensal' : 'Semestral'
+  const confidence = Math.min(96, Math.max(68, 100 - Math.abs(gr.score - selected.complianceScore) / 2))
+  const payload = {
+    propertyId: selected.id,
+    property: selected.name,
+    insurerUse: 'pricing_support',
+    geoRiskScore: gr.score,
+    geoRiskLevel: gr.level,
+    technicalClass: classeTecnica,
+    underwritingSignals: {
+      aggravatingFactors: agravantes,
+      mitigatingFactors: mitigadores,
+      monitoringCadence: cadence,
+      dataConfidence: Math.round(confidence),
+    },
+    nonBindingRecommendation: 'Usar como insumo geoespacial complementar ao motor atuarial da seguradora.',
+    disclaimer: 'GeoRisk nao define premio, franquia, limite, aceite ou condicoes contratuais.',
+  }
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-[330px_1fr] gap-4">
+      <Panel className="p-4" accent="rgba(255,107,53,0.18)">
+        <SectionTitle title="Pricing Intelligence" sub="Dossie de apoio a precificacao, sem calculo de premio ou decisao atuarial vinculante." />
+        <SelectField label="Propriedade" value={selectedId} onChange={setSelectedId} options={suppliers.map((s) => String(s.id))} labels={Object.fromEntries(suppliers.map((s) => [String(s.id), s.shortName]))} />
+        <div className="mt-4 rounded-lg p-3" style={{ background: `${color}08`, border: `1px solid ${color}24` }}>
+          <div className="text-[8px] text-gray-600 uppercase tracking-wider">Classe tecnica GeoRisk</div>
+          <div className="text-xl font-bold mt-1" style={{ color }}>{classeTecnica}</div>
+          <div className="text-[10px] text-gray-500 mt-2">Score {gr.score} - {LEVEL_LABEL[gr.level]} - monitoramento {cadence}</div>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <MiniMetric label="Conf. dados" value={`${Math.round(confidence)}%`} color="#00d4ff" />
+          <MiniMetric label="Decisao atual" value={DECISIONS[gr.decisaoSugerida].label} color={DECISIONS[gr.decisaoSugerida].color} />
+        </div>
+      </Panel>
+
+      <div className="space-y-4">
+        <Panel className="p-4" accent={`${color}24`}>
+          <div className="flex flex-col lg:flex-row gap-5">
+            <ScoreRing score={gr.score} level={gr.level} />
+            <div className="flex-1">
+              <SectionTitle title={selected.name} sub={`${selected.region} - ${selected.cultura} - ${selected.areaSegura.toLocaleString('pt-BR')} ha segurados`} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-2">Fatores agravantes</div>
+                  <SignalList items={agravantes.length ? agravantes : ['Nenhum agravante critico no recorte atual']} color="#ff6b35" />
+                </div>
+                <div>
+                  <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-2">Fatores mitigadores</div>
+                  <SignalList items={mitigadores.length ? mitigadores : ['Sem mitigador material identificado']} color="#00ff88" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </Panel>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Panel className="p-4">
+            <SectionTitle title="Insumos para motor atuarial" />
+            <FactorBars fatores={gr.fatores} />
+            <div className="mt-4"><CompositionBar fatores={gr.fatores} /></div>
+            <p className="text-[10px] text-gray-600 leading-relaxed mt-4">
+              A GeoRisk entrega variaveis geoespaciais, evidencias e classificacao tecnica. Premio, franquia, limite, aceite e condicoes finais permanecem sob responsabilidade exclusiva da seguradora.
+            </p>
+          </Panel>
+          <Panel className="p-4">
+            <SectionTitle title="Payload de integracao" />
+            <pre className="text-[9px] font-mono leading-relaxed overflow-x-auto rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.06)', color: '#8899aa', maxHeight: '260px' }}>
+              {JSON.stringify(payload, null, 2)}
+            </pre>
+          </Panel>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SignalList({ items, color }) {
+  return (
+    <div className="space-y-2">
+      {items.map((item) => (
+        <div key={item} className="rounded-lg px-3 py-2 text-[11px] text-gray-300" style={{ background: `${color}08`, border: `1px solid ${color}22` }}>
+          {item}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function AlertCenter({ insurerName = '@seguradora' }) {
   const [filter, setFilter] = useState('TODOS')
   const [sortDesc, setSortDesc] = useState(true)
+  const [selectedAlertId, setSelectedAlertId] = useState(1)
+  const [channel, setChannel] = useState('Email')
+  const [recipient, setRecipient] = useState('subscricao@seguradora.com')
+  const [message, setMessage] = useState('Solicitar revisao tecnica da apolice e atualizar acompanhamento da propriedade.')
+  const [sentLog, setSentLog] = useState([])
+  const [copiedPayload, setCopiedPayload] = useState(false)
   const alerts = useMemo(() => buildAlerts(), [])
   const filtered = alerts
     .filter((alert) => filter === 'TODOS' || alert.severity === filter)
     .sort((a, b) => sortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date))
+  const selectedAlert = alerts.find((alert) => alert.id === Number(selectedAlertId)) ?? alerts[0]
   const severityColor = (severity) => severity === 'CRITICAL' ? '#ff0040' : severity === 'HIGH' ? '#ff6b35' : severity === 'MEDIUM' ? '#ffd700' : '#00d4ff'
+  const notificationPayload = {
+    notificationId: `geo-${selectedAlert.id}-${Date.now().toString().slice(-5)}`,
+    insurer: insurerName,
+    channel,
+    recipient,
+    property: selectedAlert.property,
+    severity: selectedAlert.severity,
+    scoreChange: {
+      previous: selectedAlert.previous,
+      current: selectedAlert.current,
+    },
+    reasons: selectedAlert.reasons,
+    message,
+    suggestedAction: selectedAlert.action,
+  }
+
+  function sendNotification() {
+    const payload = {
+      ...notificationPayload,
+      notificationId: `geo-${selectedAlert.id}-${Date.now()}`,
+      sentAt: new Date().toLocaleString('pt-BR'),
+      status: channel === 'Webhook' ? 'POST simulado' : 'Enviado',
+    }
+    setSentLog((current) => [payload, ...current].slice(0, 5))
+  }
+
+  function copyPayload() {
+    navigator.clipboard.writeText(JSON.stringify(notificationPayload, null, 2))
+    setCopiedPayload(true)
+    setTimeout(() => setCopiedPayload(false), 1800)
+  }
 
   return (
     <div className="space-y-4">
@@ -572,11 +717,54 @@ export function AlertCenter() {
       </Panel>
 
       <Panel className="p-4">
-        <SectionTitle title="Integracoes futuras" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {['Email', 'Teams', 'Slack', 'Webhook'].map((item, index) => (
-            <MiniMetric key={item} label={item} value={index === 3 ? 'Payload JSON' : 'Notificacao'} color={index === 0 ? '#00d4ff' : index === 1 ? '#6264a7' : index === 2 ? '#00ff88' : '#ffd700'} />
-          ))}
+        <SectionTitle title="Envio de notificacao" sub={`Mensagem operacional personalizada para ${insurerName}.`} />
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
+          <div className="space-y-3">
+            <SelectField label="Alerta" value={String(selectedAlertId)} onChange={setSelectedAlertId} options={alerts.map((alert) => String(alert.id))} labels={Object.fromEntries(alerts.map((alert) => [String(alert.id), `${alert.property} - ${alert.severity}`]))} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <SelectField label="Canal" value={channel} onChange={setChannel} options={['Email', 'Teams', 'Slack', 'Webhook']} />
+              <Field label="Destinatario / endpoint" value={recipient} onChange={setRecipient} />
+            </div>
+            <label className="block">
+              <div className="text-[8px] text-gray-600 mb-1 uppercase tracking-wider">Mensagem</div>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={4}
+                className="w-full px-2.5 py-2 rounded text-xs text-white outline-none resize-none"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', caretColor: '#ff6b35' }}
+              />
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              <ActionButton onClick={sendNotification} disabled={!recipient || !message}>Enviar notificacao</ActionButton>
+              <ActionButton color="#00d4ff" onClick={copyPayload}>{copiedPayload ? 'Payload copiado' : 'Copiar payload'}</ActionButton>
+            </div>
+          </div>
+          <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="text-[8px] text-gray-600 uppercase tracking-wider mb-2">Preview JSON</div>
+            <pre className="text-[8px] font-mono leading-relaxed overflow-x-auto" style={{ color: '#8899aa', maxHeight: '245px' }}>
+              {JSON.stringify(notificationPayload, null, 2)}
+            </pre>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel className="p-4">
+        <SectionTitle title="Historico de envios" sub="Registro local simulado para demonstracao do fluxo operacional." />
+        <div className="space-y-2">
+          {sentLog.length === 0 && <div className="text-[11px] text-gray-600 py-3">Nenhuma notificacao enviada nesta sessao.</div>}
+          {sentLog.map((item) => {
+            const color = severityColor(item.severity)
+            return (
+              <div key={item.notificationId} className="rounded-lg px-3 py-2 flex flex-col md:flex-row md:items-center gap-2" style={{ background: `${color}07`, border: `1px solid ${color}22` }}>
+                <div className="flex-1">
+                  <div className="text-[10px] text-white font-semibold">{item.channel} - {item.recipient}</div>
+                  <div className="text-[8px] text-gray-600 mt-0.5">{item.property} - {item.sentAt}</div>
+                </div>
+                <span className="text-[8px] font-bold px-2 py-1 rounded" style={{ color, background: `${color}12`, border: `1px solid ${color}33` }}>{item.status}</span>
+              </div>
+            )
+          })}
         </div>
       </Panel>
     </div>
