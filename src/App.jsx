@@ -4,18 +4,7 @@ import Globe3D from './components/Globe3D'
 import SupplierList from './components/SupplierList'
 import SupplierDetail from './components/SupplierDetail'
 import BottomStats from './components/BottomStats'
-import MoonGlobe3D from './components/MoonGlobe3D'
-import LunarZoneList from './components/LunarZoneList'
-import LunarZoneDetail from './components/LunarZoneDetail'
-import LunarBottomStats from './components/LunarBottomStats'
-import MarsGlobe3D from './components/MarsGlobe3D'
-import MarsZoneList from './components/MarsZoneList'
-import MarsZoneDetail from './components/MarsZoneDetail'
-import MarsBottomStats from './components/MarsBottomStats'
-import LaunchView from './components/LaunchView'
 import { getSupplierById } from './data/suppliers'
-import { getZoneById } from './data/lunarZones'
-import { getMarsZoneById } from './data/marsZones'
 import { generateESGReport } from './utils/esgReport'
 
 const GeoRiskPortfolio = lazy(() => import('./components/GeoRiskPortfolio'))
@@ -64,10 +53,7 @@ function ExportToast({ visible }) {
 }
 
 const TRANSITION_LABELS = {
-  moon: 'Iniciando Protocolo Lunar',
-  mars: 'Iniciando Protocolo Marte',
   earth: 'Retornando à Órbita da Terra',
-  launch: 'Lançamento VerdeChain — Controle da Missão',
 }
 
 function SpaceTransition({ active, targetView }) {
@@ -91,11 +77,7 @@ function SpaceTransition({ active, targetView }) {
                 style={{
                   transform: `rotate(${i * 11.25}deg)`,
                   animationDelay: `${i * 0.018}s`,
-                  background: targetView === 'mars'
-                    ? 'linear-gradient(90deg, transparent 0%, rgba(255,107,53,0.5) 30%, rgba(255,107,53,0.1) 70%, transparent 100%)'
-                    : targetView === 'launch'
-                    ? 'linear-gradient(90deg, transparent 0%, rgba(0,102,255,0.5) 30%, rgba(0,102,255,0.1) 70%, transparent 100%)'
-                    : undefined,
+                  background: undefined,
                 }}
               />
             ))}
@@ -108,7 +90,7 @@ function SpaceTransition({ active, targetView }) {
               style={{
                 fontSize: '10px',
                 letterSpacing: '6px',
-                color: targetView === 'mars' ? '#ff8844' : targetView === 'launch' ? '#4488ff' : '#00d4ff',
+                color: '#00d4ff',
                 opacity: 0.55,
                 marginBottom: '10px',
                 textTransform: 'uppercase',
@@ -120,7 +102,7 @@ function SpaceTransition({ active, targetView }) {
               style={{
                 fontSize: '13px',
                 letterSpacing: '3px',
-                color: targetView === 'mars' ? '#ff8844' : targetView === 'launch' ? '#0066ff' : '#00d4ff',
+                color: '#00d4ff',
                 textTransform: 'uppercase',
               }}
             >
@@ -131,11 +113,7 @@ function SpaceTransition({ active, targetView }) {
                 marginTop: '16px',
                 width: '48px',
                 height: '1px',
-                background: targetView === 'mars'
-                  ? 'linear-gradient(90deg, transparent, #ff8844, transparent)'
-                  : targetView === 'launch'
-                  ? 'linear-gradient(90deg, transparent, #0066ff, transparent)'
-                  : 'linear-gradient(90deg, transparent, #00d4ff, transparent)',
+                background: 'linear-gradient(90deg, transparent, #00d4ff, transparent)',
                 margin: '16px auto 0',
                 opacity: 0.5,
               }}
@@ -149,9 +127,6 @@ function SpaceTransition({ active, targetView }) {
 
 const BG_COLORS = {
   earth: '#0a0a0f',
-  moon: '#000008',
-  mars: '#080200',
-  launch: '#000005',
   georisk: '#0a0a0f',
 }
 
@@ -164,16 +139,9 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [hoveredId, setHoveredId] = useState(null)
   const [showToast, setShowToast] = useState(false)
-
-  const [selectedZoneId, setSelectedZoneId] = useState(null)
-  const [hoveredZoneId, setHoveredZoneId] = useState(null)
-
-  const [selectedMarsZoneId, setSelectedMarsZoneId] = useState(null)
-  const [hoveredMarsZoneId, setHoveredMarsZoneId] = useState(null)
+  const [geoSection, setGeoSection] = useState('carteira')
 
   const selectedSupplier = view === 'earth' && selectedId ? getSupplierById(selectedId) : null
-  const selectedZone = view === 'moon' && selectedZoneId ? getZoneById(selectedZoneId) : null
-  const selectedMarsZone = view === 'mars' && selectedMarsZoneId ? getMarsZoneById(selectedMarsZoneId) : null
 
   const handleNavigateTo = useCallback((next) => {
     if (transPhase !== 'idle' || next === view) return
@@ -182,8 +150,6 @@ export default function App() {
     if (next === 'georisk' || view === 'georisk') {
       setView(next)
       setSelectedId(null)
-      setSelectedZoneId(null)
-      setSelectedMarsZoneId(null)
       return
     }
 
@@ -195,11 +161,7 @@ export default function App() {
       setTimeout(() => {
         setView(next)
         setSelectedId(null)
-        setSelectedZoneId(null)
-        setSelectedMarsZoneId(null)
         setHoveredId(null)
-        setHoveredZoneId(null)
-        setHoveredMarsZoneId(null)
       }, 700),
       setTimeout(() => {
         setTransPhase('idle')
@@ -210,14 +172,6 @@ export default function App() {
 
   const handleSelectSupplier = useCallback((id) => {
     setSelectedId((prev) => (prev === id ? null : id))
-  }, [])
-
-  const handleSelectZone = useCallback((id) => {
-    setSelectedZoneId((prev) => (prev === id ? null : id))
-  }, [])
-
-  const handleSelectMarsZone = useCallback((id) => {
-    setSelectedMarsZoneId((prev) => (prev === id ? null : id))
   }, [])
 
   const handleExport = useCallback(() => {
@@ -235,7 +189,7 @@ export default function App() {
     >
       <ConstellationBg />
 
-      <TopNav view={view} onNavigateTo={handleNavigateTo} />
+      <TopNav view={view} onNavigateTo={handleNavigateTo} geoSection={geoSection} />
 
       <div
         className="flex flex-1 min-h-0 relative"
@@ -281,89 +235,14 @@ export default function App() {
           </>
         )}
 
-        {view === 'moon' && (
-          <>
-            <div className="flex-1 min-w-0 relative">
-              <Suspense fallback={<GlobeLoader color="#aaaacc" msg="Carregando globo lunar..." />}>
-                <MoonGlobe3D
-                  onZoneHover={setHoveredZoneId}
-                  onZoneClick={handleSelectZone}
-                  selectedId={selectedZoneId}
-                />
-              </Suspense>
-            </div>
-            <div
-              className="flex-shrink-0 flex flex-col border-l overflow-hidden"
-              style={{
-                width: selectedZone ? '340px' : '280px',
-                borderColor: '#1a1a30',
-                background: 'rgba(5,5,15,0.92)',
-                backdropFilter: 'blur(12px)',
-                transition: 'width 0.3s ease',
-              }}
-            >
-              {selectedZone ? (
-                <LunarZoneDetail zone={selectedZone} onClose={() => setSelectedZoneId(null)} />
-              ) : (
-                <LunarZoneList
-                  selectedId={selectedZoneId}
-                  hoveredId={hoveredZoneId}
-                  onSelect={handleSelectZone}
-                />
-              )}
-            </div>
-          </>
-        )}
-
-        {view === 'mars' && (
-          <>
-            <div className="flex-1 min-w-0 relative">
-              <Suspense fallback={<GlobeLoader color="#ff8844" msg="Inicializando operações em Marte..." />}>
-                <MarsGlobe3D
-                  onZoneHover={setHoveredMarsZoneId}
-                  onZoneClick={handleSelectMarsZone}
-                  selectedId={selectedMarsZoneId}
-                />
-              </Suspense>
-            </div>
-            <div
-              className="flex-shrink-0 flex flex-col border-l overflow-hidden"
-              style={{
-                width: selectedMarsZone ? '340px' : '280px',
-                borderColor: 'rgba(255,107,53,0.18)',
-                background: 'rgba(8,2,0,0.93)',
-                backdropFilter: 'blur(12px)',
-                transition: 'width 0.3s ease',
-              }}
-            >
-              {selectedMarsZone ? (
-                <MarsZoneDetail
-                  zone={selectedMarsZone}
-                  onClose={() => setSelectedMarsZoneId(null)}
-                />
-              ) : (
-                <MarsZoneList
-                  selectedId={selectedMarsZoneId}
-                  hoveredId={hoveredMarsZoneId}
-                  onSelect={handleSelectMarsZone}
-                />
-              )}
-            </div>
-          </>
-        )}
-
-        {view === 'launch' && <LaunchView />}
         {view === 'georisk' && (
           <Suspense fallback={<GlobeLoader color="#ff6b35" msg="Carregando GeoRisk..." />}>
-            <GeoRiskPortfolio />
+            <GeoRiskPortfolio onSectionChange={setGeoSection} />
           </Suspense>
         )}
       </div>
 
       {view === 'earth' && <BottomStats onExport={handleExport} />}
-      {view === 'moon' && <LunarBottomStats />}
-      {view === 'mars' && <MarsBottomStats />}
-      {/* launch view manages its own bottom bar */}
 
       <SpaceTransition active={isTransitioning} targetView={targetView} />
       <ExportToast visible={showToast} />

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import BrazilMap from './BrazilMap'
 import {
   Area,
   AreaChart,
@@ -833,9 +834,75 @@ export function FinancialExposure() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-4">
         <Panel className="p-4" accent="rgba(0,212,255,0.15)">
-          <SectionTitle title="Heatmap de exposicao financeira" sub="Mapa do Brasil com propriedades monitoradas e intensidade financeira por regiao." />
-          <div className="h-[470px] flex items-center justify-center">
-            <div className="w-full max-w-[440px]"><FinanceMap hoveredId={hoveredId} onHover={setHoveredId} /></div>
+          <SectionTitle title="Heatmap de exposição financeira" sub="Propriedades monitoradas com intensidade proporcional à exposição segurada." />
+          <div className="h-[470px]">
+            <BrazilMap
+              accentColor="#00d4ff"
+              legendItems={[
+                { color: '#ff0040', label: '> R$500M' },
+                { color: '#ff6b35', label: '> R$300M' },
+                { color: '#ffd700', label: '> R$100M' },
+                { color: '#00d4ff', label: '< R$100M' },
+              ]}
+              renderMarkers={(proj, sw, s, dims) => (
+                <>
+                  {exposureBySupplier.map((sup) => {
+                    const pos = proj([sup.lng, sup.lat])
+                    if (!pos) return null
+                    const [px, py] = pos
+                    const color = sup.exposure > 500000000 ? '#ff0040'
+                      : sup.exposure > 300000000 ? '#ff6b35'
+                      : sup.exposure > 100000000 ? '#ffd700'
+                      : '#00d4ff'
+                    const r = sw(Math.min(22, 7 + sup.exposure / 80000000))
+                    const isHov = hoveredId === sup.id
+                    const ttLeft = px < dims.w / (2 * s)
+                    const ttW = sw(120), ttH = sw(38)
+                    const ttX = ttLeft ? px + sw(14) : px - ttW - sw(14)
+
+                    return (
+                      <g key={sup.id} style={{ cursor: 'pointer' }}
+                        onMouseEnter={() => setHoveredId(sup.id)}
+                        onMouseLeave={() => setHoveredId(null)}>
+                        {sup.exposure > 500000000 && (
+                          <circle cx={px} cy={py} r={r} fill="none" stroke={color} strokeWidth={sw(0.7)}>
+                            <animate attributeName="r" values={`${sw(12)};${sw(24)};${sw(12)}`} dur="2.4s" repeatCount="indefinite" />
+                            <animate attributeName="opacity" values="0.4;0;0.4" dur="2.4s" repeatCount="indefinite" />
+                          </circle>
+                        )}
+                        <circle cx={px} cy={py} r={r}
+                          fill={`${color}18`} stroke={color}
+                          strokeWidth={isHov ? sw(2) : sw(1.2)} />
+                        <text x={px} y={py + sw(3)} textAnchor="middle"
+                          fontSize={sw(isHov ? 7 : 6)} fontWeight="700"
+                          fill={color} fontFamily="Inter, ui-monospace, monospace"
+                          style={{ userSelect: 'none' }}>
+                          {sup.state}
+                        </text>
+                        {isHov && (
+                          <g>
+                            <rect x={ttX} y={py - ttH * 0.5 - sw(2)} width={ttW} height={ttH} rx={sw(3)}
+                              fill="rgba(7,7,12,0.97)" stroke={`${color}35`} strokeWidth={sw(0.8)} />
+                            <text x={ttX + sw(9)} y={py - ttH * 0.5 + sw(11)} fontSize={sw(8)} fontWeight="600"
+                              fill="rgba(255,255,255,0.9)" fontFamily="Inter, sans-serif" style={{ userSelect: 'none' }}>
+                              {sup.shortName}
+                            </text>
+                            <text x={ttX + sw(9)} y={py - ttH * 0.5 + sw(22)} fontSize={sw(7)} fill={color}
+                              fontFamily="Inter, ui-monospace, monospace" style={{ userSelect: 'none' }}>
+                              {money(sup.exposure)}
+                            </text>
+                            <text x={ttX + sw(9)} y={py - ttH * 0.5 + sw(32)} fontSize={sw(6)}
+                              fill="rgba(255,255,255,0.3)" fontFamily="Inter, sans-serif" style={{ userSelect: 'none' }}>
+                              {sup.state} · {LEVEL_LABEL[sup.geoRisk.level]}
+                            </text>
+                          </g>
+                        )}
+                      </g>
+                    )
+                  })}
+                </>
+              )}
+            />
           </div>
         </Panel>
         <Panel className="p-4">

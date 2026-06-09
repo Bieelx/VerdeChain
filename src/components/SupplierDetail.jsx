@@ -17,11 +17,11 @@ const DECISAO_CONFIG = {
 }
 
 const FATOR_CONFIG = [
-  { key: 'queimadas', label: 'Queimadas', max: 30, icon: '🔥' },
-  { key: 'seca', label: 'Seca', max: 25, icon: '☀️' },
-  { key: 'vegetacao', label: 'Saúde Vegetação', max: 20, icon: '🌿' },
-  { key: 'historicoSinistros', label: 'Hist. Sinistros', max: 15, icon: '📋' },
-  { key: 'areaCritica', label: 'Área Crítica', max: 10, icon: '⚠️' },
+  { key: 'queimadas',         label: 'Queimadas',       max: 30, icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 0-7 7-7 13a7 7 0 0 0 14 0c0-6-7-13-7-13z" stroke="#ff6b35" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+  { key: 'seca',              label: 'Seca',             max: 25, icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="#ffd700" strokeWidth="1.5"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="#ffd700" strokeWidth="1.4" strokeLinecap="round"/></svg> },
+  { key: 'vegetacao',         label: 'Saúde Vegetação', max: 20, icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M2 22c0 0 4-8 10-10" stroke="#00e07a" strokeWidth="1.5" strokeLinecap="round"/><path d="M12 12C12 6 17 2 22 2c0 5-4 10-10 10z" stroke="#00e07a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+  { key: 'historicoSinistros',label: 'Hist. Sinistros', max: 15, icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><rect x="4" y="2" width="16" height="20" rx="2" stroke="#00d4ff" strokeWidth="1.5"/><line x1="8" y1="8" x2="16" y2="8" stroke="#00d4ff" strokeWidth="1.3" strokeLinecap="round"/><line x1="8" y1="12" x2="16" y2="12" stroke="#00d4ff" strokeWidth="1.3" strokeLinecap="round"/><line x1="8" y1="16" x2="12" y2="16" stroke="#00d4ff" strokeWidth="1.3" strokeLinecap="round"/></svg> },
+  { key: 'areaCritica',       label: 'Área Crítica',    max: 10, icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="#ff0040" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><line x1="12" y1="9" x2="12" y2="13" stroke="#ff0040" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="17" r="0.7" fill="#ff0040"/></svg> },
 ]
 
 // Histórico simulado de evolução do score (últimos 6 meses)
@@ -41,7 +41,7 @@ function MetricCard({ label, value, unit, color, icon, alert }) {
       className="rounded-lg p-3 flex flex-col gap-1"
       style={{
         background: alert ? `${RISK_COLORS.CRITICAL}08` : 'rgba(255,255,255,0.03)',
-        border: `1px solid ${alert ? RISK_COLORS.CRITICAL + '33' : '#1a1a2e'}`,
+        border: `1px solid ${alert ? RISK_COLORS.CRITICAL + '33' : 'rgba(255,255,255,0.07)'}`,
       }}
     >
       <div className="flex items-center justify-between">
@@ -52,7 +52,7 @@ function MetricCard({ label, value, unit, color, icon, alert }) {
         <span className="text-lg font-bold leading-none" style={{ color: color || '#fff' }}>{value}</span>
         {unit && <span className="text-[10px] text-gray-500 mb-0.5">{unit}</span>}
       </div>
-      {alert && <div className="text-[9px] text-red-400 font-medium">⚠ Alerta ativo</div>}
+      {alert && <div className="text-[9px] font-medium" style={{ color: RISK_COLORS.CRITICAL }}>Alerta ativo</div>}
     </div>
   )
 }
@@ -70,9 +70,9 @@ function GaugeBar({ value, max = 100, color, label }) {
           className="h-full rounded-full"
           style={{
             width: `${pct}%`,
-            background: `linear-gradient(90deg, ${color}88, ${color})`,
-            boxShadow: `0 0 6px ${color}66`,
-            transition: 'width 0.6s ease',
+            background: color,
+            opacity: 0.85,
+            transition: 'width 0.5s ease',
           }}
         />
       </div>
@@ -99,9 +99,9 @@ function FatorBar({ label, icon, value, max }) {
           className="h-full rounded-full"
           style={{
             width: `${pct}%`,
-            background: `linear-gradient(90deg, ${color}66, ${color})`,
-            boxShadow: `0 0 4px ${color}55`,
-            transition: 'width 0.7s ease',
+            background: color,
+            opacity: 0.8,
+            transition: 'width 0.6s ease',
           }}
         />
       </div>
@@ -115,14 +115,14 @@ function ScoreRing({ score, color }) {
   return (
     <div className="relative w-14 h-14 flex-shrink-0">
       <svg viewBox="0 0 56 56" className="w-full h-full -rotate-90">
-        <circle cx="28" cy="28" r="22" fill="none" stroke="#1a1a2e" strokeWidth="5" />
+        <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="5" />
         <circle
           cx="28" cy="28" r="22" fill="none"
           stroke={color}
           strokeWidth="5"
           strokeDasharray={`${dash} ${circumference}`}
           strokeLinecap="round"
-          style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+          style={{}}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -182,7 +182,7 @@ function EvolucaoChart({ supplierId, color }) {
             const gy = padY + ((max - v) / max) * (H - padY * 2)
             return (
               <line key={v} x1={padX} y1={gy} x2={W - 4} y2={gy}
-                stroke="#1a1a2e" strokeWidth="0.5" strokeDasharray="3,3" />
+                stroke="rgba(255,255,255,0.07)" strokeWidth="0.5" strokeDasharray="3,3" />
             )
           })}
           {/* Area fill */}
@@ -228,7 +228,7 @@ function TabESG({ supplier }) {
           value={supplier.deforestationAlert}
           unit="%"
           color={supplier.deforestationAlert > 30 ? RISK_COLORS.CRITICAL : supplier.deforestationAlert > 10 ? RISK_COLORS.HIGH : '#00ff88'}
-          icon="🌳"
+          icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4" stroke="#00e07a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
           alert={supplier.deforestationAlert > 30}
         />
         <MetricCard
@@ -236,7 +236,7 @@ function TabESG({ supplier }) {
           value={supplier.fireHotspots}
           unit="focos"
           color={supplier.fireHotspots > 50 ? RISK_COLORS.CRITICAL : supplier.fireHotspots > 10 ? RISK_COLORS.HIGH : '#00ff88'}
-          icon="🔥"
+          icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 0-7 7-7 13a7 7 0 0 0 14 0c0-6-7-13-7-13z" stroke="#ff6b35" strokeWidth="1.5" strokeLinecap="round"/></svg>}
           alert={supplier.fireHotspots > 50}
         />
         <MetricCard
@@ -244,14 +244,14 @@ function TabESG({ supplier }) {
           value={(supplier.carbonEstimate / 1000).toFixed(1)}
           unit="ktCO₂"
           color="#00d4ff"
-          icon="♻"
+          icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><polyline points="1,4 1,10 7,10" stroke="#00d4ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" stroke="#00d4ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
         />
         <MetricCard
           label="Mud. Uso Terra"
           value={supplier.landUseChange}
           unit="%"
           color={supplier.landUseChange > 15 ? RISK_COLORS.HIGH : supplier.landUseChange > 5 ? RISK_COLORS.MEDIUM : '#00ff88'}
-          icon="🗺"
+          icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><polygon points="1,6 1,22 8,18 16,22 23,18 23,2 16,6 8,2" stroke="#aaa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><line x1="8" y1="2" x2="8" y2="18" stroke="#aaa" strokeWidth="1.3" strokeLinecap="round"/><line x1="16" y1="6" x2="16" y2="22" stroke="#aaa" strokeWidth="1.3" strokeLinecap="round"/></svg>}
         />
       </div>
 
@@ -259,7 +259,7 @@ function TabESG({ supplier }) {
         className="rounded-lg p-3"
         style={{
           background: supplier.protectedAreaProximity < 5 ? `${RISK_COLORS.CRITICAL}08` : 'rgba(255,255,255,0.03)',
-          border: `1px solid ${supplier.protectedAreaProximity < 5 ? RISK_COLORS.CRITICAL + '33' : '#1a1a2e'}`,
+          border: `1px solid ${supplier.protectedAreaProximity < 5 ? RISK_COLORS.CRITICAL + '33' : 'rgba(255,255,255,0.07)'}`,
         }}
       >
         <div className="flex items-center justify-between">
@@ -506,10 +506,7 @@ export default function SupplierDetail({ supplier, onClose }) {
       {/* Header */}
       <div
         className="px-4 py-3 border-b flex-shrink-0"
-        style={{
-          borderColor: `${riskColor}33`,
-          background: `linear-gradient(90deg, ${riskColor}08, transparent)`,
-        }}
+        style={{ borderColor: '#1a1a2e' }}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -536,31 +533,6 @@ export default function SupplierDetail({ supplier, onClose }) {
               {SEVERITY_LABEL[supplier.risk]}
             </span>
             <button onClick={onClose} className="text-gray-600 hover:text-gray-300 transition-colors text-xs p-0.5">✕</button>
-          </div>
-        </div>
-
-        {/* Score ring + gauges */}
-        <div className="mt-3 flex items-center gap-3">
-          <div className="relative w-14 h-14 flex-shrink-0">
-            <svg viewBox="0 0 56 56" className="w-full h-full -rotate-90">
-              <circle cx="28" cy="28" r="22" fill="none" stroke="#1a1a2e" strokeWidth="5" />
-              <circle
-                cx="28" cy="28" r="22" fill="none"
-                stroke={riskColor}
-                strokeWidth="5"
-                strokeDasharray={`${(supplier.riskScore / 100) * 138.2} 138.2`}
-                strokeLinecap="round"
-                style={{ filter: `drop-shadow(0 0 4px ${riskColor})` }}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs font-bold leading-none" style={{ color: riskColor }}>{supplier.riskScore}</span>
-              <span className="text-[7px] text-gray-600">ESG</span>
-            </div>
-          </div>
-          <div className="flex-1 space-y-1.5">
-            <GaugeBar value={supplier.complianceScore} color="#00ff88" label="Compliance" />
-            <GaugeBar value={supplier.riskScore} color={riskColor} label="Risco ESG" />
           </div>
         </div>
 
